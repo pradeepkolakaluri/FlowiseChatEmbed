@@ -64,7 +64,7 @@ yarn build
 <flowise-fullchatbot></flowise-fullchatbot>
 ```
 
-To enable full screen, add `margin: 0` to <code>body</code> style, and confirm you don't set height and width
+To enable full screen, add `margin: 0` to <code>body</code> style. The default height is `100dvh` (full viewport height), so omitting `height` is recommended for true full-screen mode.
 
 ```html
 <body style="margin: 0">
@@ -73,15 +73,40 @@ To enable full screen, add `margin: 0` to <code>body</code> style, and confirm y
     Chatbot.initFull({
       chatflowid: '<chatflowid>',
       apiHost: 'http://localhost:3000',
-      theme: {
-        chatWindow: {
-          // height: 700, don't set height
-          // width: 400, don't set width
-        },
-      },
     });
   </script>
 </body>
+```
+
+#### Responsive height and width
+
+`height` and `width` accept a **number** (pixels) or a **CSS string**:
+
+| Value                         | Behaviour                                                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `height: 700`                 | Fixed 700px, automatically shrinks on smaller screens                                                                                                                                         |
+| `height: '700px'`             | Same as above via string                                                                                                                                                                      |
+| `height: '80dvh'`             | Responsive — 80% of viewport height on all screen sizes                                                                                                                                       |
+| `height: 'min(700px, 80dvh)'` | Caps at 700px on large screens, shrinks proportionally on small screens                                                                                                                       |
+| `height: '100%'`              | Relative to the `<flowise-fullchatbot>` host element — only works if the host has an explicit height set (e.g. via CSS). Use `'100dvh'` or omit `height` for full-viewport behaviour instead. |
+
+The same options apply to `width`.
+
+### Clear Chat
+
+```html
+<script type="module">
+  import Chatbot from 'https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js';
+  Chatbot.initFull({
+    chatflowid: '<chatflowid>',
+    apiHost: 'http://localhost:3000',
+    id: 'my-chatbot',
+  });
+</script>
+
+<!-- Call clearChat after the bot has mounted, e.g. from a button -->
+<button onclick="Chatbot.clearChat()">Clear All Chats</button>
+<button onclick="Chatbot.clearChat('my-chatbot')">Clear Specific Chat</button>
 ```
 
 ## Configuration
@@ -94,6 +119,7 @@ You can also customize chatbot with different configuration
   Chatbot.init({
     chatflowid: '91e9c803-5169-4db9-8207-3c0915d71c5f',
     apiHost: 'http://localhost:3000',
+    pageTitle: 'Flowise Chatbot Widget', // Optional: browser tab title. Empty string falls back to "Flowise Chatbot Widget"
     chatflowConfig: {
       // topK: 2
     },
@@ -162,14 +188,15 @@ You can also customize chatbot with different configuration
         errorMessage: 'This is a custom error message',
         backgroundColor: '#ffffff',
         backgroundImage: 'enter image path or link', // If set, this will overlap the background color of the chat window.
-        height: 700,
-        width: 400,
+        height: 700, // number (px) or CSS string e.g. '80dvh', 'min(700px, 80dvh)'
+        width: 400,  // number (px) or CSS string e.g. '400px', '50vw'
         fontSize: 16,
         starterPrompts: ['What is a bot?', 'Who are you?'], // It overrides the starter prompts set by the chat flow passed
         starterPromptFontSize: 15,
         clearChatOnReload: false, // If set to true, the chat will be cleared when the page reloads
         sourceDocsTitle: 'Sources:',
         renderHTML: true,
+        headerHtml: '<div style="padding: 10px; background: #f0f0f0;"><h3>My Custom Header</h3></div>', // Optional HTML rendered at the top of the chat window
         botMessage: {
           backgroundColor: '#f7f8ff',
           textColor: '#303235',
@@ -189,6 +216,7 @@ You can also customize chatbot with different configuration
           sendButtonColor: '#3B81F6',
           maxChars: 50,
           maxCharsWarningMessage: 'You exceeded the characters limit. Please input less than 50 characters.',
+          enableInputHistory: false,
           autoFocus: true, // If not used, autofocus is disabled on mobile and enabled on desktop. true enables it on both, false disables it on both.
           sendMessageSound: true,
           // sendSoundLocation: "send_message.mp3", // If this is not used, the default sound effect will be played if sendSoundMessage is true.
@@ -213,6 +241,65 @@ You can also customize chatbot with different configuration
   });
 </script>
 ```
+
+## Dialog Portal (`dialogContainer`)
+
+By default, the `NodeDetailsDialog` (shown when clicking an agent node in the workflow tree view) renders inside the chatbot's shadow DOM. This means its `position: fixed` and `z-index` values are relative to the shadow host element, not the top-level page — which can cause the dialog to appear behind other page elements.
+
+The `dialogContainer` prop lets you render the dialog into a host-page element instead, placing it in the document's stacking context so it always appears on top.
+
+**Works with both `init` (popup) and `initFull` (full-page) embed modes.**
+
+### Usage
+
+Pass a CSS selector string or a direct `HTMLElement` reference:
+
+```html
+<!-- Add a portal target anywhere in your page -->
+<div id="flowise-portal"></div>
+
+<script type="module">
+  import Chatbot from 'https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js';
+
+  // Using a CSS selector string
+  Chatbot.init({
+    chatflowid: '<chatflowid>',
+    apiHost: 'http://localhost:3000',
+    dialogContainer: '#flowise-portal',
+  });
+
+  // Or pass a direct element reference
+  Chatbot.init({
+    chatflowid: '<chatflowid>',
+    apiHost: 'http://localhost:3000',
+    dialogContainer: document.getElementById('flowise-portal'),
+  });
+</script>
+```
+
+The same options apply to `initFull`:
+
+```html
+<div id="flowise-portal"></div>
+<flowise-fullchatbot></flowise-fullchatbot>
+
+<script type="module">
+  import Chatbot from 'https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js';
+  Chatbot.initFull({
+    chatflowid: '<chatflowid>',
+    apiHost: 'http://localhost:3000',
+    dialogContainer: '#flowise-portal',
+  });
+</script>
+```
+
+### Notes
+
+- The `NodeDetailsDialog` will only render if `chatWindow.showAgentMessages` is `true`
+- If `dialogContainer` is omitted, the dialog renders inline inside the shadow DOM (existing behaviour, no change).
+- In popup mode (`init`), if `dialogContainer` is not provided the dialog falls back to rendering inside the bubble's own container.
+- If a CSS selector string is provided but no matching element exists in the DOM at initialisation time, the dialog falls back to inline rendering and a warning is logged to the console.
+- The portal target element itself does not need any particular styling — the dialog uses `position: fixed` to position itself within the viewport.
 
 ## (Experimental) Proxy Server Setup
 
